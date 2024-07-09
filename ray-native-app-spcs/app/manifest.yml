@@ -1,0 +1,35 @@
+# This is a manifest.yml file, a required component of creating a Snowflake Native App. 
+# This file defines properties required by the application package, including the location of the setup script and version definitions.
+# Refer to https://docs.snowflake.com/en/developer-guide/native-apps/creating-manifest for a detailed understanding of this file. 
+
+manifest_version: 1
+
+artifacts:
+  setup_script: setup_script.sql
+  readme: README.md
+  default_streamlit: ray_app_public_schema.ray_config_streamlit_app
+  container_services:
+    images:
+    - /ray_provider_db/ray_provider_schema/ray_provider_image_repo/native_app_grafana
+    - /ray_provider_db/ray_provider_schema/ray_provider_image_repo/native_app_prometheus
+    - /ray_provider_db/ray_provider_schema/ray_provider_image_repo/native_app_ray_head
+    - /ray_provider_db/ray_provider_schema/ray_provider_image_repo/native_app_ray_worker
+    - /ray_provider_db/ray_provider_schema/ray_provider_image_repo/native_app_ray_custom_worker
+
+privileges:
+- BIND SERVICE ENDPOINT:
+    description: "A service that can respond to requests from public endpoints."
+- CREATE COMPUTE POOL:
+    description: "Permission to create compute pools for running services"
+- CREATE WAREHOUSE:
+    description: "Permission to create a warehouse"
+
+references:
+- external_access_reference:
+    label: "External Access Integration"
+    description: "This EAI is required to access download libraries from pypi, or models from huggingface"
+    privileges:
+    - USAGE
+    object_type: EXTERNAL ACCESS INTEGRATION
+    register_callback: ray_app_core_schema.register_single_callback
+    configuration_callback: ray_app_core_schema.get_configuration

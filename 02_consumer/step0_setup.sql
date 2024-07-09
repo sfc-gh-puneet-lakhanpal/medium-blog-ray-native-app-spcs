@@ -1,0 +1,20 @@
+use role accountadmin;
+CREATE ROLE IF NOT EXISTS RAY_CONSUMER_ROLE;
+grant role ray_consumer_role to role accountadmin;
+create warehouse if not exists xsmall_wh;
+GRANT USAGE ON WAREHOUSE XSMALL_WH to role RAY_CONSUMER_ROLE;
+GRANT CREATE INTEGRATION ON ACCOUNT TO ROLE RAY_CONSUMER_ROLE;
+GRANT CREATE DATABASE ON ACCOUNT TO ROLE RAY_CONSUMER_ROLE;
+GRANT ROLE RAY_CONSUMER_ROLE to USER PLAKHANPAL;
+SELECT SYSTEM$ENABLE_BEHAVIOR_CHANGE_BUNDLE('2024_04');
+
+use role RAY_consumer_role;
+create database if not exists RAY_consumer_db;
+use database RAY_consumer_db;
+create schema if not exists demo_sch;
+use schema demo_sch;
+use warehouse xsmall_wh;
+--GRANT CREATE TABLE ON SCHEMA RAY_consumer_db.demo_sch TO APPLICATION DISTRIBUTED_RAY_ON_SPCS;
+--GRANT CREATE STAGE ON SCHEMA RAY_consumer_db.demo_sch TO APPLICATION DISTRIBUTED_RAY_ON_SPCS;
+--GRANT CREATE FILE FORMAT ON SCHEMA RAY_consumer_db.demo_sch TO APPLICATION DISTRIBUTED_RAY_ON_SPCS;
+--GRANT CREATE VIEW ON SCHEMA RAY_consumer_db.demo_sch TO APPLICATION DISTRIBUTED_RAY_ON_SPCS;
