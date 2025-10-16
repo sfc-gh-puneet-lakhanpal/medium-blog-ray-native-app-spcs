@@ -3,10 +3,14 @@
 ## Prerequisites
 * Install Snowflake CLI and configure it. I created a file at location ~/.snowflake/config.toml with the following entry:
 ```
-[connections.default]
-account = "account"
-user = "username"
-password = "password"
+[connections.ray_provider_conn]
+account=""
+user=""
+password=""
+database="ray_provider_db"
+schema="ray_provider_schema"
+role="ray_provider_role"
+warehouse="ray_provider_wh"
 ```
 * Docker Desktop
 

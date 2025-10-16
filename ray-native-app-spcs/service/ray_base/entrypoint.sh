@@ -23,12 +23,26 @@ then
     export RAY_ENABLE_RECORD_ACTOR_TASK_LOGGING=1
     export RAY_BACKEND_LOG_LEVEL=debug
     export HOST_IP="$eth0Ip"
+    export VLLM_HOST_IP="$eth0Ip"
     export NCCL_DEBUG=INFO
     export NCCL_SOCKET_IFNAME=eth0
     jupyter lab --generate-config
     nohup jupyter lab --ip='*' --port=8888 --no-browser --allow-root --NotebookApp.password='' --NotebookApp.token='' & 
     #nohup jupyter notebook --allow-root --ip=0.0.0.0 --port=8888 --no-browser --NotebookApp.token='' --NotebookApp.password='' &
-    ray start --node-ip-address="$eth0Ip" --head --disable-usage-stats --port=6379 --dashboard-host=0.0.0.0 --object-manager-port=8076 --node-manager-port=8077 --dashboard-agent-grpc-port=8079 --dashboard-agent-listen-port=8081 --metrics-export-port=8082 --ray-client-server-port=10001 --dashboard-port=8265 --temp-dir=$log_dir --block
+    # Detect available GPUs and register as resources so Ray can schedule GPU workloads
+    gpu_count=$(nvidia-smi --query-gpu=index --format=csv,noheader | wc -l || echo 0)
+    ray_resources="{}"
+    if [ "$gpu_count" -gt 0 ]; then
+        ray_resources=$(python3 - <<PY
+import json
+print(json.dumps({"accelerator_type:A10G": $gpu_count}))
+PY
+)
+        export NVIDIA_VISIBLE_DEVICES=all
+        export NVIDIA_DRIVER_CAPABILITIES=compute,utility
+        export CUDA_DEVICE_MAX_CONNECTIONS=1
+    fi
+    ray start --node-ip-address="$eth0Ip" --head --disable-usage-stats --port=6379 --dashboard-host=0.0.0.0 --object-manager-port=8076 --node-manager-port=8077 --dashboard-agent-grpc-port=8079 --dashboard-agent-listen-port=8081 --metrics-export-port=8082 --ray-client-server-port=10001 --dashboard-port=8265 --resources="$ray_resources" --num-gpus="$gpu_count" --temp-dir=$log_dir --block
 elif [ "$WORKLOAD" == "rayworker" ];
 then
     if [ -z "${RAY_HEAD_ADDRESS}" ]; then
@@ -38,9 +52,23 @@ then
     export RAY_ENABLE_RECORD_ACTOR_TASK_LOGGING=1
     export RAY_BACKEND_LOG_LEVEL=debug
     export HOST_IP="$eth0Ip"
+    export VLLM_HOST_IP="$eth0Ip"
     export NCCL_DEBUG=INFO
     export NCCL_SOCKET_IFNAME=eth0
-    ray start --node-ip-address="$eth0Ip" --disable-usage-stats --address=${RAY_HEAD_ADDRESS} --object-manager-port=8076 --node-manager-port=8077 --dashboard-agent-grpc-port=8079 --dashboard-agent-listen-port=8081 --metrics-export-port=8082 --block
+    # Detect available GPUs and register as resources so Ray can schedule GPU workloads
+    gpu_count=$(nvidia-smi --query-gpu=index --format=csv,noheader | wc -l || echo 0)
+    ray_resources="{}"
+    if [ "$gpu_count" -gt 0 ]; then
+        ray_resources=$(python3 - <<PY
+import json
+print(json.dumps({"accelerator_type:A10G": $gpu_count}))
+PY
+)
+        export NVIDIA_VISIBLE_DEVICES=all
+        export NVIDIA_DRIVER_CAPABILITIES=compute,utility
+        export CUDA_DEVICE_MAX_CONNECTIONS=1
+    fi
+    ray start --node-ip-address="$eth0Ip" --disable-usage-stats --address=${RAY_HEAD_ADDRESS} --resources="$ray_resources" --num-gpus="$gpu_count" --object-manager-port=8076 --node-manager-port=8077 --dashboard-agent-grpc-port=8079 --dashboard-agent-listen-port=8081 --metrics-export-port=8082 --block
 elif [ "$WORKLOAD" == "raycustomworker" ];
 then
     if [ -z "${RAY_HEAD_ADDRESS}" ]; then
@@ -50,7 +78,29 @@ then
     export RAY_ENABLE_RECORD_ACTOR_TASK_LOGGING=1
     export RAY_BACKEND_LOG_LEVEL=debug
     export HOST_IP="$eth0Ip"
+    export VLLM_HOST_IP="$eth0Ip"
     export NCCL_DEBUG=INFO
     export NCCL_SOCKET_IFNAME=eth0
-    ray start --node-ip-address="$eth0Ip" --disable-usage-stats --address=${RAY_HEAD_ADDRESS} --resources='{"custom_worker": 1}' --object-manager-port=8076 --node-manager-port=8077 --dashboard-agent-grpc-port=8079 --dashboard-agent-listen-port=8081 --metrics-export-port=8082 --block
+    # Detect available GPUs and register as resources plus custom tag
+    gpu_count=$(nvidia-smi --query-gpu=index --format=csv,noheader | wc -l || echo 0)
+    resources_json='{"custom_worker": 1}'
+    if [ "$gpu_count" -gt 0 ]; then
+        gpu_json=$(python3 - <<PY
+import json
+print(json.dumps({"accelerator_type:A10G": $gpu_count}))
+PY
+)
+        resources_json=$(python3 - <<PY
+import json
+r=json.loads('''$resources_json''')
+g=json.loads('''$gpu_json''')
+r.update(g)
+print(json.dumps(r))
+PY
+)
+        export NVIDIA_VISIBLE_DEVICES=all
+        export NVIDIA_DRIVER_CAPABILITIES=compute,utility
+        export CUDA_DEVICE_MAX_CONNECTIONS=1
+    fi
+    ray start --node-ip-address="$eth0Ip" --disable-usage-stats --address=${RAY_HEAD_ADDRESS} --resources="$resources_json" --num-gpus="$gpu_count" --object-manager-port=8076 --node-manager-port=8077 --dashboard-agent-grpc-port=8079 --dashboard-agent-listen-port=8081 --metrics-export-port=8082 --block
 fi
